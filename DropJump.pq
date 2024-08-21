@@ -1,0 +1,49 @@
+let
+// first call to get access token
+	// enter your integration key here
+	SecretKey = "YOUR_INTEGRATION_KEY",
+	
+	// makes call to get access token
+    Source = Json.Document(Web.Contents(" https://cloud.hawkindynamics.com/api/token", [Headers=[Authorization="Bearer " & SecretKey]])),
+    ResponseTable = Table.FromRecords({Source}),
+    NewTable = Table.TransformColumnTypes(ResponseTable,{{"access_token", type text}, {"token_type", type text}, {"expires_at", Int64.Type}}),
+    
+	// extract access token from response table
+    tokenList = NewTable[access_token],
+    accessToken = Text.From(tokenList{0}),
+
+// Create variable for test type
+    testType = "gyBETpRXpdr63Ab2E0V8",
+
+// second call for SJ data
+    Source2 = Json.Document(Web.Contents("https://cloud.hawkindynamics.com/api/dev?" & "testTypeId=" & testType, [Headers=[Authorization="Bearer " & accessToken]])),
+    responseTable = Table.FromRecords({Source2}),
+
+    // expand table from responce
+    expandTable = Table.ExpandListColumn(responseTable, "data"),
+
+    // expand data columns
+    expandData = Table.ExpandRecordColumn(expandTable, "data", {"id", "timestamp", "segment", "testType", "athlete", "Avg. Braking Velocity(m/s)", "Left Avg. Braking Force(N)", "Right Avg. Propulsive Force(N)", "Relative Propulsive Impulse(N.s/kg)", "Propulsive Phase(s)", "Peak Relative Braking Force(%)", "Net Impulse Ratio", "Left Force at Peak Propulsive Force(N)", "Time To Takeoff(s)", "Jump Height(m)", "Avg. Propulsive Velocity(m/s)", "Takeoff Velocity(m/s)", "Avg. Propulsive Power(W)", "Right Avg. Braking RFD(N/s)", "L|R Peak Propulsive Force(%)", "Right Force at Peak Propulsive Force(N)", "Avg. Relative Braking Force(%)", "Peak Relative Braking Power(W/kg)", "System Weight(N)", "Peak Relative Propulsive Force(%)", "L|R Avg. Braking RFD(%)", "Peak Relative Propulsive Power(W/kg)", "Stiffness(N/m)", "Peak Velocity(m/s)", "Positive Impulse(N.s)", "Avg. Braking RFD(N/s)", "Avg. Relative Braking Power(W/kg)", "Right Force at Peak Braking Force(N)", "Relative Force At Min Displacement(%)", "Braking Net Impulse(N.s)", "Positive Net Impulse(N.s)", "Propulsive Impulse(N.s)", "Braking Phase %", "Impact Peak(Yes/No)", "Left Avg. Braking RFD(N/s)", "Avg. Relative Propulsive Power(W/kg)", "Propulsive Phase %", "Right Avg. Braking Force(N)", "L|R Avg. Propulsive Force(%)", "Avg. Relative Propulsive Force(%)", "Propulsive Net Impulse(N.s)", "Peak Braking Power(W)", "Drop Height(m)", "Avg. Braking Force(N)", "Left Avg. Propulsive Force(N)", "Braking Phase(s)", "L|R Avg. Braking Force(%)", "Peak Propulsive Power(W)", "Force At Min Displacement(N)", "Peak Propulsive Force(N)", "Avg. Braking Power(W)", "Relative Propulsive Net Impulse(N.s/kg)", "Contact Time(s)", "Spring Like Correlation", "Braking Impulse(N.s)", "mRSI", "Relative Braking Net Impulse(N.s/kg)", "L|R Propulsive Impulse Index(%)", "Left Force at Peak Braking Force(N)", "Time to Peak Braking Force(ms)", "Avg. Propulsive Force(N)", "L|R Peak Braking Force(%)", "L|R Braking Impulse Index(%)", "Jump Momentum(kg.m/s)", "Relative Braking Impulse(N.s/kg)", "Peak Braking Force(N)", "active", "Left Avg. Landing Force(N)", "Peak Landing Force(N)", "Right Avg. Landing Force(N)", "Flight Time(s)", "RSI", "Relative Peak Landing Force(%)", "L|R Avg. Landing Force(%)", "Landing Stiffness(N/m)", "Right Force at Peak Landing Force(N)", "L|R Peak Landing Force(%)", "Avg. Landing Force(N)", "Left Force at Peak Landing Force(N)"}, {"id", "timestamp", "segment", "testType", "athlete", "Avg. Braking Velocity(m/s)", "Left Avg. Braking Force(N)", "Right Avg. Propulsive Force(N)", "Relative Propulsive Impulse(N.s/kg)", "Propulsive Phase(s)", "Peak Relative Braking Force(%)", "Net Impulse Ratio", "Left Force at Peak Propulsive Force(N)", "Time To Takeoff(s)", "Jump Height(m)", "Avg. Propulsive Velocity(m/s)", "Takeoff Velocity(m/s)", "Avg. Propulsive Power(W)", "Right Avg. Braking RFD(N/s)", "L|R Peak Propulsive Force(%)", "Right Force at Peak Propulsive Force(N)", "Avg. Relative Braking Force(%)", "Peak Relative Braking Power(W/kg)", "System Weight(N)", "Peak Relative Propulsive Force(%)", "L|R Avg. Braking RFD(%)", "Peak Relative Propulsive Power(W/kg)", "Stiffness(N/m)", "Peak Velocity(m/s)", "Positive Impulse(N.s)", "Avg. Braking RFD(N/s)", "Avg. Relative Braking Power(W/kg)", "Right Force at Peak Braking Force(N)", "Relative Force At Min Displacement(%)", "Braking Net Impulse(N.s)", "Positive Net Impulse(N.s)", "Propulsive Impulse(N.s)", "Braking Phase %", "Impact Peak(Yes/No)", "Left Avg. Braking RFD(N/s)", "Avg. Relative Propulsive Power(W/kg)", "Propulsive Phase %", "Right Avg. Braking Force(N)", "L|R Avg. Propulsive Force(%)", "Avg. Relative Propulsive Force(%)", "Propulsive Net Impulse(N.s)", "Peak Braking Power(W)", "Drop Height(m)", "Avg. Braking Force(N)", "Left Avg. Propulsive Force(N)", "Braking Phase(s)", "L|R Avg. Braking Force(%)", "Peak Propulsive Power(W)", "Force At Min Displacement(N)", "Peak Propulsive Force(N)", "Avg. Braking Power(W)", "Relative Propulsive Net Impulse(N.s/kg)", "Contact Time(s)", "Spring Like Correlation", "Braking Impulse(N.s)", "mRSI", "Relative Braking Net Impulse(N.s/kg)", "L|R Propulsive Impulse Index(%)", "Left Force at Peak Braking Force(N)", "Time to Peak Braking Force(ms)", "Avg. Propulsive Force(N)", "L|R Peak Braking Force(%)", "L|R Braking Impulse Index(%)", "Jump Momentum(kg.m/s)", "Relative Braking Impulse(N.s/kg)", "Peak Braking Force(N)", "active", "Left Avg. Landing Force(N)", "Peak Landing Force(N)", "Right Avg. Landing Force(N)", "Flight Time(s)", "RSI", "Relative Peak Landing Force(%)", "L|R Avg. Landing Force(%)", "Landing Stiffness(N/m)", "Right Force at Peak Landing Force(N)", "L|R Peak Landing Force(%)", "Avg. Landing Force(N)", "Left Force at Peak Landing Force(N)"}),
+
+    // Expand test type data
+    expandTestData = Table.ExpandRecordColumn(expandData, "testType", {"id", "name", "canonicalId"}, {"test.id", "test.name", "test.canonicalId"}),
+    
+    // Expand athlete data
+    expandAthleteData = Table.ExpandRecordColumn(expandTestData, "athlete", {"id", "name", "active", "teams", "groups"}, {"athlete.id", "athlete.name", "athlete.active", "athlete.teams", "athlete.groups"}),
+    
+    // extract athlete teams
+    extractTeams = Table.TransformColumns(expandAthleteData, {"athlete.teams", each Text.Combine(List.Transform(_, Text.From), ","), type text}),
+    
+    // extract athlete groups
+    extractGroups = Table.TransformColumns(extractTeams, {"athlete.groups", each Text.Combine(List.Transform(_, Text.From), ","), type text}),
+    
+    // add date column
+    addedDate = Table.AddColumn(extractGroups, "date", each DateTimeZone.ToLocal(DateTime.AddZone(#datetime(1970, 1, 1, 0, 0, 0) + #duration(0, 0, 0, [timestamp]),0))),
+
+    // chane column formats
+    changeType = Table.TransformColumnTypes(addedDate,{{"timestamp", Int64.Type}, {"lastSyncTime", Int64.Type}, {"lastTestTime", Int64.Type}, {"count", Int64.Type}, {"date", type date}, {"id", type text}, {"segment", type text}, {"test.id", type text}, {"test.name", type text}, {"test.canonicalId", type text}, {"athlete.id", type text}, {"athlete.name", type text}, {"athlete.teams", type text}, {"athlete.groups", type text}, {"active", type logical}}),
+
+    // reorder columns
+    outputTable = Table.ReorderColumns(changeType,{"id", "active", "timestamp", "segment", "test.id", "test.name", "test.canonicalId", "athlete.id", "athlete.name", "athlete.active", "athlete.teams", "athlete.groups", "Avg. Braking Velocity(m/s)", "Left Avg. Braking Force(N)", "Right Avg. Propulsive Force(N)", "Relative Propulsive Impulse(N.s/kg)", "Propulsive Phase(s)", "Peak Relative Braking Force(%)", "Net Impulse Ratio", "Left Force at Peak Propulsive Force(N)", "Time To Takeoff(s)", "Jump Height(m)", "Avg. Propulsive Velocity(m/s)", "Takeoff Velocity(m/s)", "Avg. Propulsive Power(W)", "Right Avg. Braking RFD(N/s)", "L|R Peak Propulsive Force(%)", "Right Force at Peak Propulsive Force(N)", "Avg. Relative Braking Force(%)", "Peak Relative Braking Power(W/kg)", "System Weight(N)", "Peak Relative Propulsive Force(%)", "L|R Avg. Braking RFD(%)", "Peak Relative Propulsive Power(W/kg)", "Stiffness(N/m)", "Peak Velocity(m/s)", "Positive Impulse(N.s)", "Avg. Braking RFD(N/s)", "Avg. Relative Braking Power(W/kg)", "Right Force at Peak Braking Force(N)", "Relative Force At Min Displacement(%)", "Braking Net Impulse(N.s)", "Positive Net Impulse(N.s)", "Propulsive Impulse(N.s)", "Braking Phase %", "Impact Peak(Yes/No)", "Left Avg. Braking RFD(N/s)", "Avg. Relative Propulsive Power(W/kg)", "Propulsive Phase %", "Right Avg. Braking Force(N)", "L|R Avg. Propulsive Force(%)", "Avg. Relative Propulsive Force(%)", "Propulsive Net Impulse(N.s)", "Peak Braking Power(W)", "Drop Height(m)", "Avg. Braking Force(N)", "Left Avg. Propulsive Force(N)", "Braking Phase(s)", "L|R Avg. Braking Force(%)", "Peak Propulsive Power(W)", "Force At Min Displacement(N)", "Peak Propulsive Force(N)", "Avg. Braking Power(W)", "Relative Propulsive Net Impulse(N.s/kg)", "Contact Time(s)", "Spring Like Correlation", "Braking Impulse(N.s)", "mRSI", "Relative Braking Net Impulse(N.s/kg)", "L|R Propulsive Impulse Index(%)", "Left Force at Peak Braking Force(N)", "Time to Peak Braking Force(ms)", "Avg. Propulsive Force(N)", "L|R Peak Braking Force(%)", "L|R Braking Impulse Index(%)", "Jump Momentum(kg.m/s)", "Relative Braking Impulse(N.s/kg)", "Peak Braking Force(N)", "Left Avg. Landing Force(N)", "Peak Landing Force(N)", "Right Avg. Landing Force(N)", "Flight Time(s)", "RSI", "Relative Peak Landing Force(%)", "L|R Avg. Landing Force(%)", "Landing Stiffness(N/m)", "Right Force at Peak Landing Force(N)", "L|R Peak Landing Force(%)", "Avg. Landing Force(N)", "Left Force at Peak Landing Force(N)", "count", "lastSyncTime", "lastTestTime", "date"})
+in
+    outputTable
