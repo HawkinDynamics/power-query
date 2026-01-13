@@ -15,7 +15,7 @@ let
     // Base URL
     url = Text.From(validated{0}[url]),
 
-    endpoint = url & "teams",
+    endpoint = url & "/teams",
 
     output = funcTeams(accessToken, endpoint)
 in

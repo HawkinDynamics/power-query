@@ -14,7 +14,7 @@ let
     // Base URL
     url = Text.From(validated{0}[url]),
 
-    endpoint = url & "groups",
+    endpoint = url & "/groups",
 
     output = funcGroups(accessToken, endpoint)
 in

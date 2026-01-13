@@ -9,7 +9,7 @@ let
         "https://cloud.dev.hawkindynamics.com/api/",
 
     // Org Name
-    org = if orgName = "" then "v1/" else orgName & "/",
+    org = if orgName = "" then "v1" else orgName,
 
     // URL complete
     url = baseURL & org,

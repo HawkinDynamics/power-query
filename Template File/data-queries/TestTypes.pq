@@ -15,7 +15,7 @@ let
     // Base URL
     url = Text.From(validated{0}[url]),
 
-    endpoint = url & "test_types",
+    endpoint = url & "/test_types",
 
     Source2 = Json.Document(Web.Contents(endpoint, [Headers=[Authorization="Bearer " & accessToken]])),
     #"Converted to Table" = Table.FromList(Source2, Splitter.SplitByNothing(), null, null, ExtraValues.Error),

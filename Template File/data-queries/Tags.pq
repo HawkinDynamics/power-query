@@ -14,7 +14,7 @@ let
     // Base URL
     url = Text.From(validated{0}[url]),
 
-    endpoint = url & "tags",
+    endpoint = url & "/tags",
 
     output = funcTags(accessToken, endpoint)
 in
