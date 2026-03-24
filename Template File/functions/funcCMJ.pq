@@ -7,31 +7,61 @@ let
     Source2 = Json.Document(Web.Contents(fullURL, [Headers=[Authorization="Bearer " & accessToken]])),
     responseTable = Table.FromRecords({Source2}),
 
-    // expand table
+    // expand table from response
     expandTable = Table.ExpandListColumn(responseTable, "data"),
 
-    // expand data columns
-    expandTableData = Table.ExpandRecordColumn(expandTable, "data", {"id", "timestamp", "segment", "testType", "athlete", "Right Avg. Propulsive Force(N)", "Relative Propulsive Net Impulse(N.s/kg)", "Propulsive Phase(s)", "Peak Relative Braking Force(%)", "Positive Impulse(N.s)", "Impulse Ratio", "Countermovement Depth(m)", "Left Force at Peak Propulsive Force(N)", "Jump Height(m)", "Unweighting Phase(s)", "Relative Propulsive Impulse(N.s/kg)", "L|R Avg. Braking RFD(%)", "Peak Relative Propulsive Power(W/kg)", "Stiffness(N/m)", "Avg. Relative Braking Power(W/kg)", "Unweighting Phase %", "Right Force at Peak Braking Force(N)", "RSI", "L|R Avg. Propulsive Force(%)", "Right Avg. Braking Force(N)", "Avg. Relative Propulsive Force(%)", "Left Avg. Landing Force(N)", "L|R Avg. Braking Force(%)", "Peak Propulsive Power(W)", "Force at Min Displacement(N)", "Avg. Braking Power(W)", "Peak Landing Force(N)", "Relative Braking Impulse(N.s/kg)", "Right Avg. Landing Force(N)", "Avg. Propulsive Force(N)", "Flight Time(s)", "Relative Braking Net Impulse(N.s/kg)", "Jump Momentum(kg.m/s)", "Peak Braking Force(N)", "Avg. Braking Velocity(m/s)", "Left Avg. Braking Force(N)", "Time To Takeoff(s)", "Avg. Propulsive Velocity(m/s)", "Takeoff Velocity(m/s)", "L|R Peak Braking Force(%)", "Avg. Propulsive Power(W)", "Right Avg. Braking RFD(N/s)", "L|R Peak Propulsive Force(%)", "Right Force at Peak Propulsive Force(N)", "Avg. Relative Braking Force(%)", "Relative Peak Landing Force(%)", "Peak Relative Braking Power(W/kg)", "mRSI", "System Weight(N)", "Peak Relative Propulsive Force(%)", "Peak Velocity(m/s)", "L|R Avg. Landing Force(%)", "Positive Net Impulse(N.s)", "Landing Stiffness(N/m)", "Relative Force at Min Displacement(%)", "Braking Net Impulse(N.s)", "Braking Phase %", "Left Avg. Braking RFD(N/s)", "Avg. Relative Propulsive Power(W/kg)", "Propulsive Phase %", "Braking Impulse(N.s)", "Right Force at Peak Landing Force(N)", "Propulsive Net Impulse(N.s)", "L|R Peak Landing Force(%)", "Peak Braking Power(W)", "Avg. Braking Force(N)", "Left Avg. Propulsive Force(N)", "Braking Phase(s)", "Avg. Landing Force(N)", "Peak Braking Velocity(m/s)", "Peak Propulsive Force(N)", "Braking RFD(N/s)", "Left Force at Peak Landing Force(N)", "L|R Propulsive Impulse Index(%)", "Left Force at Peak Braking Force(N)", "Propulsive Impulse(N.s)", "L|R Braking Impulse Index(%)", "active", "Time to Stabilization(ms)", "L|R Landing Impulse Index(%)"}, {"id", "timestamp", "segment", "testType", "athlete", "Right Avg. Propulsive Force(N)", "Relative Propulsive Net Impulse(N.s/kg)", "Propulsive Phase(s)", "Peak Relative Braking Force(%)", "Positive Impulse(N.s)", "Impulse Ratio", "Countermovement Depth(m)", "Left Force at Peak Propulsive Force(N)", "Jump Height(m)", "Unweighting Phase(s)", "Relative Propulsive Impulse(N.s/kg)", "L|R Avg. Braking RFD(%)", "Peak Relative Propulsive Power(W/kg)", "Stiffness(N/m)", "Avg. Relative Braking Power(W/kg)", "Unweighting Phase %", "Right Force at Peak Braking Force(N)", "RSI", "L|R Avg. Propulsive Force(%)", "Right Avg. Braking Force(N)", "Avg. Relative Propulsive Force(%)", "Left Avg. Landing Force(N)", "L|R Avg. Braking Force(%)", "Peak Propulsive Power(W)", "Force at Min Displacement(N)", "Avg. Braking Power(W)", "Peak Landing Force(N)", "Relative Braking Impulse(N.s/kg)", "Right Avg. Landing Force(N)", "Avg. Propulsive Force(N)", "Flight Time(s)", "Relative Braking Net Impulse(N.s/kg)", "Jump Momentum(kg.m/s)", "Peak Braking Force(N)", "Avg. Braking Velocity(m/s)", "Left Avg. Braking Force(N)", "Time To Takeoff(s)", "Avg. Propulsive Velocity(m/s)", "Takeoff Velocity(m/s)", "L|R Peak Braking Force(%)", "Avg. Propulsive Power(W)", "Right Avg. Braking RFD(N/s)", "L|R Peak Propulsive Force(%)", "Right Force at Peak Propulsive Force(N)", "Avg. Relative Braking Force(%)", "Relative Peak Landing Force(%)", "Peak Relative Braking Power(W/kg)", "mRSI", "System Weight(N)", "Peak Relative Propulsive Force(%)", "Peak Velocity(m/s)", "L|R Avg. Landing Force(%)", "Positive Net Impulse(N.s)", "Landing Stiffness(N/m)", "Relative Force at Min Displacement(%)", "Braking Net Impulse(N.s)", "Braking Phase %", "Left Avg. Braking RFD(N/s)", "Avg. Relative Propulsive Power(W/kg)", "Propulsive Phase %", "Braking Impulse(N.s)", "Right Force at Peak Landing Force(N)", "Propulsive Net Impulse(N.s)", "L|R Peak Landing Force(%)", "Peak Braking Power(W)", "Avg. Braking Force(N)", "Left Avg. Propulsive Force(N)", "Braking Phase(s)", "Avg. Landing Force(N)", "Peak Braking Velocity(m/s)", "Peak Propulsive Force(N)", "Braking RFD(N/s)", "Left Force at Peak Landing Force(N)", "L|R Propulsive Impulse Index(%)", "Left Force at Peak Braking Force(N)", "Propulsive Impulse(N.s)", "L|R Braking Impulse Index(%)", "active", "Time to Stabilization(ms)", "L|R Landing Impulse Index(%)"}),
+    // get all unique field names across all data records
+    allFields = List.Distinct(
+        List.Combine(
+            List.Transform(
+                expandTable[data],
+                each if _ is record then Record.FieldNames(_) else {}
+            )
+        )
+    ),
+
+    // expand data columns dynamically
+    expandData = Table.ExpandRecordColumn(expandTable, "data", allFields, allFields),
 
     // expand test data columns
-    expandTestData = Table.ExpandRecordColumn(expandTableData, "testType", {"id", "name", "canonicalId"}, {"test.id", "test.name", "test.canonicalId"}),
+    expandTestData = Table.ExpandRecordColumn(expandData, "testType", {"id", "name", "canonicalId", "tags"}, {"test.id", "test.name", "test.canonicalId", "test.tags"}),
+
+    // extract test tags as comma-separated strings
+    addTagIds = Table.AddColumn(expandTestData, "test.tags.id", each try Text.Combine(List.Transform([test.tags], each _[id]), ", ") otherwise null, type text),
+    addTagNames = Table.AddColumn(addTagIds, "test.tags.name", each try Text.Combine(List.Transform([test.tags], each _[name]), ", ") otherwise null, type text),
+    removeTagsList = Table.RemoveColumns(addTagNames, {"test.tags"}),
 
     // expand athlete data columns
-    expandAthleteData = Table.ExpandRecordColumn(expandTestData, "athlete", {"id", "name", "active", "teams", "groups", "external"}, {"athlete.id", "athlete.name", "athlete.active", "athlete.teams", "athlete.groups", "athlete.external"}),
-
-    // extract group data, comma separated
-    extractGroups = Table.TransformColumns(expandAthleteData, {"athlete.teams", each Text.Combine(List.Transform(_, Text.From), ","), type text}),
+    expandAthleteData = Table.ExpandRecordColumn(removeTagsList, "athlete", {"id", "name", "active", "teams", "groups", "external"}, {"athlete.id", "athlete.name", "athlete.active", "athlete.teams", "athlete.groups", "athlete.external"}),
 
     // extract team data, comma separated
-    extractTeams = Table.TransformColumns(extractGroups, {"athlete.groups", each Text.Combine(List.Transform(_, Text.From), ","), type text}),
+    extractTeams = Table.TransformColumns(expandAthleteData, {"athlete.teams", each Text.Combine(List.Transform(_, Text.From), ","), type text}),
+
+    // extract group data, comma separated
+    extractGroups = Table.TransformColumns(extractTeams, {"athlete.groups", each Text.Combine(List.Transform(_, Text.From), ","), type text}),
 
     // add date column
-    addedDate = Table.AddColumn(extractTeams, "date", each DateTimeZone.ToLocal(DateTime.AddZone(#datetime(1970, 1, 1, 0, 0, 0) + #duration(0, 0, 0, [timestamp]),0))),
+    addedDate = Table.AddColumn(extractGroups, "date", each DateTimeZone.ToLocal(DateTime.AddZone(#datetime(1970, 1, 1, 0, 0, 0) + #duration(0, 0, 0, [timestamp]),0))),
+
+    // define known column types
+    knownTypes = {{"timestamp", Int64.Type}, {"lastSyncTime", Int64.Type}, {"lastTestTime", Int64.Type}, {"count", Int64.Type}, {"date", type date}, {"id", type text}, {"segment", type text}, {"test.id", type text}, {"test.name", type text}, {"test.canonicalId", type text}, {"test.tags.id", type text}, {"test.tags.name", type text}, {"athlete.id", type text}, {"athlete.name", type text}, {"athlete.teams", type text}, {"athlete.groups", type text}, {"athlete.external", type any}, {"active", type logical}},
+    knownNames = List.Transform(knownTypes, each _{0}),
+
+    // type all remaining (metric) columns as number
+    allColumns = Table.ColumnNames(addedDate),
+    metricColumns = List.RemoveItems(allColumns, knownNames),
+    metricTypes = List.Transform(metricColumns, each {_, type number}),
 
     // change column formats
-    changeType = Table.TransformColumnTypes(addedDate,{{"timestamp", Int64.Type}, {"lastSyncTime", Int64.Type}, {"lastTestTime", Int64.Type}, {"count", Int64.Type}, {"date", type date}, {"id", type text}, {"segment", type text}, {"test.id", type text}, {"test.name", type text}, {"test.canonicalId", type text}, {"athlete.id", type text}, {"athlete.name", type text}, {"athlete.teams", type text}, {"athlete.groups", type text}, {"active", type logical}}),
+    changeType = Table.TransformColumnTypes(addedDate, List.Combine({knownTypes, metricTypes})),
 
-    // reorder columns
-    outputTable = Table.ReorderColumns(changeType,{"id", "active", "timestamp", "segment", "test.id", "test.name", "test.canonicalId", "athlete.id", "athlete.name", "athlete.active", "athlete.teams", "athlete.groups", "athlete.external", "Right Avg. Propulsive Force(N)", "Relative Propulsive Net Impulse(N.s/kg)", "Propulsive Phase(s)", "Peak Relative Braking Force(%)", "Positive Impulse(N.s)", "Impulse Ratio", "Countermovement Depth(m)", "Left Force at Peak Propulsive Force(N)", "Jump Height(m)", "Unweighting Phase(s)", "Relative Propulsive Impulse(N.s/kg)", "L|R Avg. Braking RFD(%)", "Peak Relative Propulsive Power(W/kg)", "Stiffness(N/m)", "Avg. Relative Braking Power(W/kg)", "Unweighting Phase %", "Right Force at Peak Braking Force(N)", "RSI", "L|R Avg. Propulsive Force(%)", "Right Avg. Braking Force(N)", "Avg. Relative Propulsive Force(%)", "Left Avg. Landing Force(N)", "L|R Avg. Braking Force(%)", "Peak Propulsive Power(W)", "Force at Min Displacement(N)", "Avg. Braking Power(W)", "Peak Landing Force(N)", "Relative Braking Impulse(N.s/kg)", "Right Avg. Landing Force(N)", "Avg. Propulsive Force(N)", "Flight Time(s)", "Relative Braking Net Impulse(N.s/kg)", "Jump Momentum(kg.m/s)", "Peak Braking Force(N)", "Avg. Braking Velocity(m/s)", "Left Avg. Braking Force(N)", "Time To Takeoff(s)", "Avg. Propulsive Velocity(m/s)", "Takeoff Velocity(m/s)", "L|R Peak Braking Force(%)", "Avg. Propulsive Power(W)", "Right Avg. Braking RFD(N/s)", "L|R Peak Propulsive Force(%)", "Right Force at Peak Propulsive Force(N)", "Avg. Relative Braking Force(%)", "Relative Peak Landing Force(%)", "Peak Relative Braking Power(W/kg)", "mRSI", "System Weight(N)", "Peak Relative Propulsive Force(%)", "Peak Velocity(m/s)", "L|R Avg. Landing Force(%)", "Positive Net Impulse(N.s)", "Landing Stiffness(N/m)", "Relative Force at Min Displacement(%)", "Braking Net Impulse(N.s)", "Braking Phase %", "Left Avg. Braking RFD(N/s)", "Avg. Relative Propulsive Power(W/kg)", "Propulsive Phase %", "Braking Impulse(N.s)", "Right Force at Peak Landing Force(N)", "Propulsive Net Impulse(N.s)", "L|R Peak Landing Force(%)", "Peak Braking Power(W)", "Avg. Braking Force(N)", "Left Avg. Propulsive Force(N)", "Braking Phase(s)", "Avg. Landing Force(N)", "Peak Braking Velocity(m/s)", "Peak Propulsive Force(N)", "Braking RFD(N/s)", "Left Force at Peak Landing Force(N)", "L|R Propulsive Impulse Index(%)", "Left Force at Peak Braking Force(N)", "Propulsive Impulse(N.s)", "L|R Braking Impulse Index(%)", "Time to Stabilization(ms)", "L|R Landing Impulse Index(%)", "count", "lastSyncTime", "lastTestTime", "date"})
+    // reorder columns: known prefix, then metrics alphabetically, then metadata
+    prefixCols = {"id", "active", "timestamp", "segment", "test.id", "test.name", "test.canonicalId", "test.tags.id", "test.tags.name", "athlete.id", "athlete.name", "athlete.active", "athlete.teams", "athlete.groups", "athlete.external"},
+    suffixCols = {"count", "lastSyncTime", "lastTestTime", "date"},
+    sortedMetrics = List.Sort(metricColumns, Order.Ascending),
+    reorderList = List.Combine({prefixCols, sortedMetrics, suffixCols}),
+    // only reorder columns that actually exist in the table
+    validReorder = List.Intersect({reorderList, allColumns}),
+    outputTable = Table.ReorderColumns(changeType, validReorder)
 in
     outputTable

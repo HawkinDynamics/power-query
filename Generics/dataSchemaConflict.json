@@ -1,0 +1,137 @@
+{
+  "dataReturns": {
+    "oldDataReturn" : {
+      "data": [
+        {
+          "id": "873irWXwMv58Im6JODAH",
+          "timestamp": 1690859334,
+          "segment": "Free Run:1",
+          "testType": {
+            "id": "1b89af8f9fd82494f3edb9bf9ff3bf9d",
+            "name": "Free Run",
+            "canonicalId": "5pRSUQVSJVnxijpPMck3",
+            "tags": [
+              {
+                "id" : "eyBdlL0YDXUPuBFZWFxU",
+                "name" : "left",
+                "description" : "Using the left side"
+              },
+              {
+                "id" : "OJcwMqWsOd2kmikTdwwZ",
+                "name" : "right",
+                "description" : "Using the right side"
+              }
+            ]
+          },
+          "athlete": {
+            "id": "OLbsebtmf81eiwg1AeE5",
+            "name": "Lauren Green",
+            "teams": [
+              "DPMb6ek2mgUNVcg8siSqpnIvE2i2",
+              "mfi20QMkpzcghlfTZpUl"
+            ],
+            "groups": [
+              "yh8RnOvg56dQNrZGBKWZ"
+            ],
+            "active": true,
+            "external": {
+              "email": "l.green@hawkin.com",
+              "updateDate": "2025-03-03 18:42:12",
+              "tibLength": "8.5",
+              "femLength": "12.8"
+            }
+          },
+          "L|R Avg. Force(%)": 3.0674,
+          "Peak Right Force(N)": 863,
+          "Avg. Right Force(N)": 575.5568,
+          "Peak Left Force(N)": 937,
+          "SD Left Force(N)": 135.9487,
+          "Peak Force(N)": 1720,
+          "L|R Peak Force(%)": -0.1163,
+          "SD Right Force(N)": 126.4925,
+          "Avg. Left Force(N)": 611.9836,
+          "SD Total Force(N)": 251.0021,
+          "Avg. Force(N)": 1187.5404,
+          "active": true
+        }
+      ]
+    },
+    "newDataReturn" : {
+      "data": [
+        {
+          "id": "drZdAL43biZv3JYvk7t7",
+          "timestamp": 1771101299,
+          "segment": "Free Run:1",
+          "testType": {
+            "id": "1b89af8f9fd82494f3edb9bf9ff3bf9d",
+            "name": "Free Run",
+            "canonicalId": "5pRSUQVSJVnxijpPMck3",
+            "tags": [
+              {
+                "id" : "eyBdlL0YDXUPuBFZWFxU",
+                "name" : "left",
+                "description" : "Using the left side"
+              },
+              {
+                "id" : "OJcwMqWsOd2kmikTdwwZ",
+                "name" : "right",
+                "description" : "Using the right side"
+              }
+            ]
+          },
+          "athlete": {
+            "id": "OLbsebtmf81eiwg1AeE5",
+            "name": "Lauren Green",
+            "teams": [
+              "DPMb6ek2mgUNVcg8siSqpnIvE2i2",
+              "mfi20QMkpzcghlfTZpUl"
+            ],
+            "groups": [
+              "yh8RnOvg56dQNrZGBKWZ"
+            ],
+            "active": true,
+            "external": {
+              "email": "l.green@hawkin.com",
+              "updateDate": "2025-03-03 18:42:12",
+              "tibLength": "8.5",
+              "femLength": "12.8"
+            }
+          },
+          "Right Sway Velocity(cm/s)": 8.2573,
+          "Right ML Sway Range(cm)": 8.2,
+          "Left Sway Velocity(cm/s)": 7.2935,
+          "Right AP Sway Range(cm)": 17.2,
+          "Left ML Sway Length(cm)": 92.6,
+          "L|R Avg. Force(%)": -20.2818,
+          "Right AP Sway Length(cm)": 215.8,
+          "Peak Right Force(N)": 920,
+          "Left AP Sway Length(cm)": 198.1,
+          "Left Avg. AP Sway Velocity(cm/s)": 5.7487,
+          "Avg. Right Force(N)": 516.1095,
+          "Left ML Sway Range(cm)": 7.9,
+          "Peak Left Force(N)": 863,
+          "SD Left Force(N)": 219.2499,
+          "Peak Force(N)": 1032,
+          "Left AP Sway Range(cm)": 20.8,
+          "Left Avg. ML Sway Velocity(cm/s)": 2.6872,
+          "Left Sway Length(cm)": 251.3338,
+          "Right Sway Range(cm)": 19.0547,
+          "L|R Peak Force(%)": -21.124,
+          "SD Right Force(N)": 222.9505,
+          "Avg. Left Force(N)": 342.0576,
+          "Right Avg. ML Sway Velocity(cm/s)": 3.1506,
+          "SD Total Force(N)": 37.2122,
+          "Right Sway Length(cm)": 284.6307,
+          "Avg. Force(N)": 858.1672,
+          "Right Avg. AP Sway Velocity(cm/s)": 6.2605,
+          "Left Sway Range(cm)": 22.2497,
+          "Right ML Sway Length(cm)": 108.6,
+          "active": false
+        }
+      ],
+      "count": 403,
+      "lastSyncTime": 1771101333,
+      "lastTestTime": 1771101299
+    }
+  }
+}

@@ -10,32 +10,58 @@ let
     // expand table from response
     expandTable = Table.ExpandListColumn(responseTable, "data"),
 
-    // expand data columns
-    expandTableData = Table.ExpandRecordColumn(expandTable, "data", {"id", "timestamp", "segment", "testType", "athlete", "Top 3 Jumps Avg. Jump Height(m)", "Total Contact Time(s)", "Top 5 Jumps Avg. Jump Height(m)", "Top 5 Jumps Avg. mRSI", "Number of Jumps(Count)", "Top 3 Jumps Avg. mRSI", "Top 5 Jumps Peak mRSI", "Top 5 Jumps Avg. RSI", "L|R Avg. Force(%)", "Top 3 Jumps Peak RSI", "Top 5 Jumps Peak RSI", "Top 3 Jumps Peak mRSI", "Peak Jump mRSI", "Top 3 Jumps Avg. RSI", "Peak Jump RSI", "Avg. RSI", "Avg. Jump Height(m)", "Peak Force(N)", "Avg. mRSI", "System Weight(N)", "L|R Peak Force(%)", "Peak Jump Height(m)", "Peak RSI", "Total Flight Time(s)", "Avg. Force(N)", "Peak mRSI"}, {"id", "timestamp", "segment", "testType", "athlete", "Top 3 Jumps Avg. Jump Height(m)", "Total Contact Time(s)", "Top 5 Jumps Avg. Jump Height(m)", "Top 5 Jumps Avg. mRSI", "Number of Jumps(Count)", "Top 3 Jumps Avg. mRSI", "Top 5 Jumps Peak mRSI", "Top 5 Jumps Avg. RSI", "L|R Avg. Force(%)", "Top 3 Jumps Peak RSI", "Top 5 Jumps Peak RSI", "Top 3 Jumps Peak mRSI", "Peak Jump mRSI", "Top 3 Jumps Avg. RSI", "Peak Jump RSI", "Avg. RSI", "Avg. Jump Height(m)", "Peak Force(N)", "Avg. mRSI", "System Weight(N)", "L|R Peak Force(%)", "Peak Jump Height(m)", "Peak RSI", "Total Flight Time(s)", "Avg. Force(N)", "Peak mRSI"}),
+    // get all unique field names across all data records
+    allFields = List.Distinct(
+        List.Combine(
+            List.Transform(
+                expandTable[data],
+                each if _ is record then Record.FieldNames(_) else {}
+            )
+        )
+    ),
+
+    // expand data columns dynamically
+    expandData = Table.ExpandRecordColumn(expandTable, "data", allFields, allFields),
 
     // expand test data columns
-    expandTestData = Table.ExpandRecordColumn(expandTableData, "testType", {"id", "name", "canonicalId", "tags"}, {"test.id", "test.name", "test.canonicalId", "test.tags"}),
-	
-	// expand testType tags data
-    expandTestTypeTags = Table.ExpandListColumn(expandTestData, "test.tags"),
-	
-	// expand testTypeTags columns
-    expandedTagsData = Table.ExpandRecordColumn(expandTestTypeTags, "test.tags", {"id", "name", "description"}, {"test.tags.id", "test.tags.name", "test.tags.description"}),
+    expandTestData = Table.ExpandRecordColumn(expandData, "testType", {"id", "name", "canonicalId", "tags"}, {"test.id", "test.name", "test.canonicalId", "test.tags"}),
+
+    // extract test tags as comma-separated strings
+    addTagIds = Table.AddColumn(expandTestData, "test.tags.id", each try Text.Combine(List.Transform([test.tags], each _[id]), ", ") otherwise null, type text),
+    addTagNames = Table.AddColumn(addTagIds, "test.tags.name", each try Text.Combine(List.Transform([test.tags], each _[name]), ", ") otherwise null, type text),
+    removeTagsList = Table.RemoveColumns(addTagNames, {"test.tags"}),
 
     // expand athlete data columns
-    expandAthleteData = Table.ExpandRecordColumn(expandedTagsData, "athlete", {"id", "name", "active", "teams", "groups", "external"}, {"athlete.id", "athlete.name", "athlete.active", "athlete.teams", "athlete.groups", "athlete.external"}),
+    expandAthleteData = Table.ExpandRecordColumn(removeTagsList, "athlete", {"id", "name", "active", "teams", "groups", "external"}, {"athlete.id", "athlete.name", "athlete.active", "athlete.teams", "athlete.groups", "athlete.external"}),
 
-    // extract group data, comma seperated
-    extractGroups = Table.TransformColumns(expandAthleteData, {"athlete.teams", each Text.Combine(List.Transform(_, Text.From), ","), type text}),
+    // extract team data, comma separated
+    extractTeams = Table.TransformColumns(expandAthleteData, {"athlete.teams", each Text.Combine(List.Transform(_, Text.From), ","), type text}),
 
-    // extract team data, comma seperated
-    extractTeams = Table.TransformColumns(extractGroups, {"athlete.groups", each Text.Combine(List.Transform(_, Text.From), ","), type text}),
+    // extract group data, comma separated
+    extractGroups = Table.TransformColumns(extractTeams, {"athlete.groups", each Text.Combine(List.Transform(_, Text.From), ","), type text}),
 
     // add date column
-    addedDate = Table.AddColumn(extractTeams, "date", each DateTimeZone.ToLocal(DateTime.AddZone(#datetime(1970, 1, 1, 0, 0, 0) + #duration(0, 0, 0, [timestamp]),0))),
+    addedDate = Table.AddColumn(extractGroups, "date", each DateTimeZone.ToLocal(DateTime.AddZone(#datetime(1970, 1, 1, 0, 0, 0) + #duration(0, 0, 0, [timestamp]),0))),
+
+    // define known column types
+    knownTypes = {{"timestamp", Int64.Type}, {"lastSyncTime", Int64.Type}, {"lastTestTime", Int64.Type}, {"count", Int64.Type}, {"date", type date}, {"id", type text}, {"segment", type text}, {"test.id", type text}, {"test.name", type text}, {"test.canonicalId", type text}, {"test.tags.id", type text}, {"test.tags.name", type text}, {"athlete.id", type text}, {"athlete.name", type text}, {"athlete.teams", type text}, {"athlete.groups", type text}, {"athlete.external", type any}, {"active", type logical}},
+    knownNames = List.Transform(knownTypes, each _{0}),
+
+    // type all remaining (metric) columns as number
+    allColumns = Table.ColumnNames(addedDate),
+    metricColumns = List.RemoveItems(allColumns, knownNames),
+    metricTypes = List.Transform(metricColumns, each {_, type number}),
 
     // change column formats
-    changeType = Table.TransformColumnTypes(addedDate,{{"timestamp", Int64.Type}, {"lastSyncTime", Int64.Type}, {"lastTestTime", Int64.Type}, {"count", Int64.Type}, {"date", type date}, {"id", type text}, {"segment", type text}, {"test.id", type text}, {"test.name", type text}, {"test.canonicalId", type text}, {"test.tags.id", type text},{"test.tags.name", type text},{"test.tags.description", type text},{"athlete.id", type text}, {"athlete.name", type text}, {"athlete.teams", type text}, {"athlete.groups", type text}})
-    
+    changeType = Table.TransformColumnTypes(addedDate, List.Combine({knownTypes, metricTypes})),
+
+    // reorder columns: known prefix, then metrics alphabetically, then metadata
+    prefixCols = {"id", "active", "timestamp", "segment", "test.id", "test.name", "test.canonicalId", "test.tags.id", "test.tags.name", "athlete.id", "athlete.name", "athlete.active", "athlete.teams", "athlete.groups", "athlete.external"},
+    suffixCols = {"count", "lastSyncTime", "lastTestTime", "date"},
+    sortedMetrics = List.Sort(metricColumns, Order.Ascending),
+    reorderList = List.Combine({prefixCols, sortedMetrics, suffixCols}),
+    // only reorder columns that actually exist in the table
+    validReorder = List.Intersect({reorderList, allColumns}),
+    outputTable = Table.ReorderColumns(changeType, validReorder)
 in
-    changeType
+    outputTable

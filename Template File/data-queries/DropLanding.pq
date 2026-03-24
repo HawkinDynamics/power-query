@@ -17,6 +17,7 @@ let
     orgStartDate = DateTimeZone.From(#"Organization Start Date"),  // Replace with your actual parameter
     endpoint = currentAuth{0}[url], // Replace or parameterize
     sync = false,                                  // Optional: true if doing a sync call
+    testTypeId = "rKgI4y3ItTAzUekTUpvR",
 
     // === Current DateTime and Epoch Conversion ===
     now = DateTimeZone.UtcNow(),
@@ -38,7 +39,7 @@ let
     ),
 
     // === Call funcsCMJ for Each Pair ===
-    callFunc = List.Transform(epochPairs, each @funcDL(sync, accessToken, endpoint, _{0}, _{1})),
+    callFunc = List.Transform(epochPairs, each @funcTests(sync, accessToken, endpoint, _{0}, _{1}, testTypeId)),
 
     // === Combine All Tables ===
     combined = Table.Combine(callFunc),
