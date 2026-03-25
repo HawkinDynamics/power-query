@@ -1,6 +1,6 @@
 # **Hawkin Dynamics Power Query Scripts**
 
-Welcome to the official Hawkin Dynamics Power Query repository. This collection of scripts and templates enables you to pull athlete performance data directly from the Hawkin Dynamics Cloud API into Microsoft Power BI using the Power Query (M) formula language.
+Welcome to the official Hawkin Dynamics Power Query repository. This collection of scripts and templates enables you to pull athlete performance data directly from the Hawkin Dynamics Cloud API into **Microsoft Power BI** and **Microsoft Excel** using the Power Query (M) formula language.
 
 Whether you are building a simple weekly report or a complex historical analysis dashboard, these tools bridge the gap between your raw force plate data and actionable insights.
 
@@ -11,6 +11,7 @@ The repository is organized into three directories, each representing a differen
 | | Generics | Parameterized Template | Template Files |
 |---|---|---|---|
 | **Audience** | Developers, debugging | Power users building custom reports | Anyone who wants a ready-to-go dashboard |
+| **Platform** | Power BI and Excel | Power BI | Power BI |
 | **Setup effort** | Manual edits per script | One-time parameter + function setup | Open .pbit and enter credentials |
 | **Maintenance** | Edit each script individually | Update one parameter, all queries inherit | Re-download latest template |
 | **Schema handling** | Dynamic (automatic) | Dynamic (automatic) | Dynamic (automatic) |
@@ -135,7 +136,8 @@ Standalone, self-contained scripts where all configuration — API key, region, 
   * `Tests by Test Type/` — one script per test type (CmJump, SquatJump, DropJump, Isometric, etc.)
 
 * **Why use this?**
-  * **Self-contained** — each script works independently; copy one file, paste it into Power BI, and it runs.
+  * **Self-contained** — each script works independently; copy one file, paste it into Power BI or Excel, and it runs.
+  * **Works in both Power BI and Excel** — because each script is standalone with no external dependencies, these are the only scripts in the repo that work in Excel's Power Query editor.
   * **Transparent** — all logic is visible in a single linear flow, making it ideal for learning how the API works or debugging connection issues.
   * **No dependencies** — no need to set up parameters, functions, or an Auth query.
 
@@ -150,7 +152,9 @@ Standalone, self-contained scripts where all configuration — API key, region, 
      endDate = "",
      ```
   3. Replace the placeholder values with your actual credentials and desired filters.
-  4. Copy the entire script and paste it into Power BI's **Advanced Editor** (Home > Get Data > Blank Query > Advanced Editor).
+  4. Copy the entire script and paste it into the **Advanced Editor**:
+     * **Power BI:** Home > Get Data > Blank Query > Advanced Editor
+     * **Excel:** Data > Get Data > From Other Sources > Blank Query > Advanced Editor
   5. Click **Done** to execute.
 
 * **Limitations compared to Parameterized Template:**
@@ -178,6 +182,25 @@ The Parameterized Template approach separates concerns into reusable functions a
   * **Data queries** (CMJ, Athletes, etc.) — these call the functions and produce the actual tables.
   * **Parameters** (SecretKey, reg, orgName, Organization Start Date) — shown with a parameter icon. Change a value here and all queries update.
 - **Trade-off:** Requires more initial setup, but is far easier to maintain, avoids credential duplication, handles large datasets via chunking, and automatically adapts to API schema changes.
+
+----------
+
+## **Using with Excel**
+
+The Generic scripts in `/Generics` are fully compatible with **Microsoft Excel's Power Query** editor. Because each script is self-contained — handling its own authentication, API call, and data shaping — it can run in Excel without needing Power BI Parameters or shared function queries (which are Power BI-specific features).
+
+The Parameterized Template and Template Files approaches rely on Power BI Parameters and inter-query function references, which are **not supported in Excel**. If you need to pull Hawkin data into Excel, use the Generic scripts.
+
+### **How to use in Excel:**
+
+1. Open Excel and go to **Data** > **Get Data** > **From Other Sources** > **Blank Query**.
+2. In the query editor, click **Advanced Editor**.
+3. Paste the contents of the desired Generic `.pq` script (e.g., `Generics/Tests by Test Type/CmJump.pq`).
+4. Update the configuration variables at the top of the script with your credentials.
+5. Click **Done**, then **Close & Load** to import the data into your worksheet.
+6. Repeat for each additional query you need (Athletes, Teams, etc.).
+
+> **Note:** Each query in Excel authenticates independently. If you are pulling multiple test types, you will need to update your credentials in each script separately.
 
 ----------
 
@@ -211,7 +234,8 @@ All test-type scripts (across both Generics and Parameterized Template) use dyna
 
 ## **Prerequisites**
 
-* **Microsoft Power BI Desktop** — latest monthly version recommended. Free download from the Microsoft Store.
+* **Microsoft Power BI Desktop** — latest monthly version recommended. Free download from the Microsoft Store. Required for Template Files and Parameterized Template approaches.
+* **Microsoft Excel** (Microsoft 365 or Excel 2016+) — required for Excel Power Query usage. Only the Generic scripts are compatible with Excel.
 * **Hawkin Dynamics Integration Key:**
   * This is *not* your login password.
   * To find it, log in to the Hawkin Cloud, go to **Settings** > **Integrations**, and copy your unique API Key.
