@@ -1,21 +1,18 @@
 // Power Query function to get Hawkin Dynamics API access token
-(accessToken as text, reg as text, orgName as nullable text, startDate as datetime) as table =>
+(accessToken as text, reg as text, orgName as nullable text) as table =>
 let
     // Region
-    baseURL = if 
+    baseURL = if
         reg = "Europe" then "https://eu.cloud.hawkindynamics.com/api/" else if
         reg = "Asia/Pacific" then "https://apac.cloud.hawkindynamics.com/api/" else if
         reg = "Americas" then "https://cloud.hawkindynamics.com/api/" else
         "https://cloud.dev.hawkindynamics.com/api/",
 
     // Org Name
-    org = if orgName = "" then "v1" else orgName,
+    org = if orgName = "" or orgName = null then "v1" else orgName,
 
     // URL complete
     url = baseURL & org,
-
-    // Org start date
-    orgStart = startDate,
 
     // Token
     accessKey = accessToken,
@@ -23,13 +20,13 @@ let
     // Call to get access token
     Source = Json.Document(
         Web.Contents(
-            baseURL & "token", 
+            baseURL & "token",
             [
                 Headers = [Authorization = "Bearer " & accessKey]
             ]
         )
     ),
-    
+
     // Convert response to table and define types
     ResponseTable = Table.FromRecords({Source}),
     NewTable = Table.TransformColumnTypes(
@@ -41,7 +38,6 @@ let
         }
     ),
 
-    outputTable = Table.AddColumn(NewTable, "url", each url),
-    return = Table.AddColumn(outputTable, "org_start", each orgStart) 
+    return = Table.AddColumn(NewTable, "url", each url)
 in
     return

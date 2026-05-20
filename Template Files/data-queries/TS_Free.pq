@@ -1,5 +1,4 @@
 let
-
     // Current Auth Info
     currentAuth = Auth,
 
@@ -9,40 +8,35 @@ let
     currentDT = epochNow(false),
     // Validate
     validated = if expiration > currentDT then currentAuth else funcAuth(),
-    
-	// extract access token from response table
+
+    // extract access token from response table
     accessToken = Text.From(validated{0}[access_token]),
-    // === Parameters ===
-    
-    orgStartDate = DateTimeZone.From(#"Organization Start Date"),  // Replace with your actual parameter
-    endpoint = currentAuth{0}[url], // Replace or parameterize
-    sync = false,                                  // Optional: true if doing a sync call
+    // Endpoint URL (built by funcAuth from API Region + Organization Name)
+    endpoint = currentAuth{0}[url],
+
+    // === Test Type ===
     testTypeId = "4KlQgKmBxbOY6uKTLDFL",
 
-    // === Current DateTime and Epoch Conversion ===
-    now = DateTimeZone.UtcNow(),
-    startEpoch = Duration.TotalSeconds(orgStartDate - #datetimezone(1970, 1, 1, 0, 0, 0, 0, 0)),
-    endEpoch = Duration.TotalSeconds(now - #datetimezone(1970, 1, 1, 0, 0, 0, 0, 0)),
+    // === PBI Parameters (snake_case locals for coding consistency) ===
+    include_inactive_tests = #"Include Inactive Tests",
+    include_eid = #"Include Equipment ID",
 
-    // === Generate List of 30-Day Epoch Ranges ===
-    stepSize = 60 * 60 * 24 * 30, // 30 days in seconds
-    rangeList = List.Generate(
-        () => startEpoch,
-        each _ < endEpoch,
-        each _ + stepSize
-    ),
+    // Optional date filters. Users enter Date values in PBI; we convert to Unix
+    // epoch seconds for the API. Null when the parameter is left blank, in which
+    // case funcTests omits the &from / &to query params and pagination returns
+    // every test for this test type.
+    from_date = if #"from" <> null then
+                    Duration.TotalSeconds(DateTimeZone.From(#"from") - #datetimezone(1970, 1, 1, 0, 0, 0, 0, 0))
+                else null,
+    to_date = if #"to" <> null then
+                  Duration.TotalSeconds(DateTimeZone.From(#"to") - #datetimezone(1970, 1, 1, 0, 0, 0, 0, 0))
+              else null,
 
-    // Create list of [from, to] epoch pairs
-    epochPairs = List.Transform(
-        rangeList,
-        each {_, if (_ + stepSize) < endEpoch then (_ + stepSize) else endEpoch}
-    ),
-
-    // === Call funcsCMJ for Each Pair ===
-    callFunc = List.Transform(epochPairs, each @funcTests(sync, accessToken, endpoint, _{0}, _{1}, testTypeId)),
-
-    // === Combine All Tables ===
-    combined = Table.Combine(callFunc),
-    #"Filtered Rows" = Table.SelectRows(combined, each ([id] <> null))
+    // === Fetch tests ===
+    // funcTests handles cursor pagination internally; a single call returns
+    // every page combined. The previous client-side 30-day chunking loop is
+    // obsolete with API v1.13+ pagination.
+    result = funcTests(accessToken, endpoint, testTypeId, from_date, to_date, include_inactive_tests, include_eid),
+    #"Filtered Rows" = Table.SelectRows(result, each ([id] <> null))
 in
     #"Filtered Rows"
