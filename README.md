@@ -266,7 +266,7 @@ All test-type scripts (across both Generics and Power BI Scripts) use dynamic sc
 - **Column Formatting:** After loading data, check your column types. Power Query may default numeric columns to "Text". Fix this by selecting the column and changing the "Data Type" in the Transform tab.
 - **Token Expiration:** If using the Power BI Scripts approach, tokens are validated automatically via `epochNow()`. If you encounter auth errors, try refreshing all queries.
 - **Large Date Ranges:** All scripts now use cursor-based server pagination, so even all-time pulls work without manual chunking. Leave `from`/`to` blank in the Power BI Scripts (or `fromDate`/`toDate` empty in Generics) to fetch every test.
-- **API Documentation:** For technical details on rate limits, data points, and field definitions, refer to the API docs PDF in the repo.
+- **API Documentation:** For technical details on rate limits, data points, and field definitions, see the official Hawkin Connect API docs at [connect.hawkindynamics.com](https://connect.hawkindynamics.com).
 
 ---
 
