@@ -1,43 +1,22 @@
-// Power Query function to get Hawkin Dynamics API access token
-(accessToken as text, reg as text, orgName as nullable text) as table =>
+// Exchanges the long-lived integration key for a short-lived access token.
+//
+// Returns the token as text. Previous versions returned a table carrying the
+// token, expiry and base URL, which the data queries then read row values out
+// of. That made every data query a dynamic data source (its URL came from
+// another query's data) and blocked scheduled refresh in the Power BI service,
+// so the URL no longer travels through data — each query rebuilds it from the
+// API Region and Organization Name parameters instead.
+//
+// The expiry check the old table supported is gone with it: every query
+// authenticates for itself, so a token is never reused long enough to expire
+// mid-refresh. Power Query caches identical requests within a refresh, so this
+// does not mean one token round trip per table in practice.
+//
+// The token endpoint sits at /api/token with no version prefix, unlike the
+// /api/v1/* data endpoints.
+(integrationKey as text, reg as nullable text) as text =>
 let
-    // Region
-    baseURL = if
-        reg = "Europe" then "https://eu.cloud.hawkindynamics.com/api/" else if
-        reg = "Asia/Pacific" then "https://apac.cloud.hawkindynamics.com/api/" else if
-        reg = "Americas" then "https://cloud.hawkindynamics.com/api/" else
-        "https://cloud.dev.hawkindynamics.com/api/",
-
-    // Org Name
-    org = if orgName = "" or orgName = null then "v1" else orgName,
-
-    // URL complete
-    url = baseURL & org,
-
-    // Token
-    accessKey = accessToken,
-
-    // Call to get access token
-    Source = Json.Document(
-        Web.Contents(
-            baseURL & "token",
-            [
-                Headers = [Authorization = "Bearer " & accessKey]
-            ]
-        )
-    ),
-
-    // Convert response to table and define types
-    ResponseTable = Table.FromRecords({Source}),
-    NewTable = Table.TransformColumnTypes(
-        ResponseTable,
-        {
-            {"access_token", type text},
-            {"token_type", type text},
-            {"expires_at", Int64.Type}
-        }
-    ),
-
-    return = Table.AddColumn(NewTable, "url", each url)
+    response = Json.Document(funcGet(reg, "api/token", [], integrationKey)),
+    accessToken = Text.From(response[access_token])
 in
-    return
+    accessToken

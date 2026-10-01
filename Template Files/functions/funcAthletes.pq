@@ -1,9 +1,11 @@
-(accessToken as text, endpoint as text, optional includeInactive as nullable logical) as table =>
+(accessToken as text, reg as nullable text, org as nullable text, optional includeInactive as nullable logical) as table =>
 let
-    // Athletes endpoint accepts `?includeInactive` as a flag (no value); presence means
-    // include inactive. Default behavior (no flag) returns active athletes only.
-    inactiveParam = if includeInactive = true then "?includeInactive" else "",
-    Source2 = Json.Document(Web.Contents(endpoint & inactiveParam, [Headers=[Authorization="Bearer " & accessToken]])),
+    // The API documents includeInactive as a boolean defaulting to false. Bare
+    // presence (`?includeInactive`) also reads as true, but a Query record field
+    // must carry a value, so we send the string "true" and omit the parameter
+    // entirely for the default active-only case.
+    query = if includeInactive = true then [includeInactive = "true"] else [],
+    Source2 = Json.Document(funcGet(reg, funcOrgPath(org, "athletes"), query, accessToken)),
     responseTable = Table.FromRecords({Source2}),
 
     // expand table from response
@@ -51,7 +53,7 @@ let
     else
         extractGroups,
 
-    // Derive a Date column from lastTestedOn (epoch milliseconds) when the
+    // Derive a Date column from lastTestedOn (epoch seconds) when the
     // field is present. The original numeric column is kept for callers
     // that want the raw timestamp.
     addLastTestedOn = if List.Contains(Table.ColumnNames(expandExternal), "lastTestedOn") then
@@ -63,7 +65,7 @@ let
                 else Date.From(
                     DateTimeZone.ToLocal(
                         DateTime.AddZone(
-                            #datetime(1970, 1, 1, 0, 0, 0) + #duration(0, 0, 0, [lastTestedOn] / 1000),
+                            #datetime(1970, 1, 1, 0, 0, 0) + #duration(0, 0, 0, [lastTestedOn]),
                             0
                         )
                     )

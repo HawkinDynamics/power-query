@@ -29,6 +29,14 @@ let
     includeInactive = false,
     // Include equipment ID on each test record. Default false.
     includeEid = false,
+    // Response-shape overrides (API v1.16) for customers migrating from a legacy
+    // named endpoint to /api/v1. Leave the defaults for new integrations.
+    // false = keep the string "N/A" for non-calculable metrics (metric columns become text).
+    useNulls = true,
+    // true = API rounds each metric to its display precision (no effect with nestMetrics).
+    rounding = false,
+    // true = one row per test x metric with metric.id / metric.label / metric.units / metric.value.
+    nestMetrics = false,
 
 /* -------------------------------------------------------------------------- */
 /* STOP! DO NOT EDIT BELOW THIS LINE                     */
@@ -62,7 +70,10 @@ let
         (if fromDate <> "" then "&from=" & fromDate else "") &
         (if toDate <> "" then "&to=" & toDate else "") &
         (if includeInactive = false then "&includeInactive=false" else "") &
-        (if includeEid = true then "&includeEid=true" else ""),
+        (if includeEid = true then "&includeEid=true" else "") &
+        (if useNulls = false then "&useNulls=false" else "") &
+        (if rounding = true then "&rounding=true" else "") &
+        (if nestMetrics = true then "&nestMetrics=true" else ""),
 
     // Build base URL with paginate=true (responses are capped at 1,000 records / page)
     baseQueryURL = baseURL & slug & "?testTypeId=" & testType & optionalParams & "&paginate=true",
@@ -110,8 +121,16 @@ let
     // expand data columns dynamically
     expandData = Table.ExpandRecordColumn(expandTable, "data", allFields, allFields),
 
+    // nestMetrics = true (API v1.16): each record carries a `metrics` list instead of
+    // flat metric fields. Expand it to one row per test x metric. An empty list is
+    // padded with a single null so the test keeps a row.
+    hasNested = List.Contains(allFields, "metrics"),
+    padMetrics = if hasNested then Table.TransformColumns(expandData, {"metrics", each if _ = null or List.IsEmpty(_) then {null} else _}) else expandData,
+    expandMetricsList = if hasNested then Table.ExpandListColumn(padMetrics, "metrics") else padMetrics,
+    expandMetrics = if hasNested then Table.ExpandRecordColumn(expandMetricsList, "metrics", {"metricId", "metricLabel", "metricUnits", "metricValue"}, {"metric.id", "metric.label", "metric.units", "metric.value"}) else expandMetricsList,
+
     // expand test data columns
-    expandTestData = Table.ExpandRecordColumn(expandData, "testType", {"id", "name", "canonicalId", "tags"}, {"test.id", "test.name", "test.canonicalId", "test.tags"}),
+    expandTestData = Table.ExpandRecordColumn(expandMetrics, "testType", {"id", "name", "canonicalId", "tags"}, {"test.id", "test.name", "test.canonicalId", "test.tags"}),
 
     // extract test tags as comma-separated strings
     addTagIds = Table.AddColumn(expandTestData, "test.tags.id", each try Text.Combine(List.Transform([test.tags], each _[id]), ", ") otherwise null, type text),
@@ -139,13 +158,14 @@ let
         else Table.AddColumn(addedDate, "active", each true, type logical),
 
     // define known column types
-    knownTypes = {{"timestamp", Int64.Type}, {"lastSyncTime", Int64.Type}, {"lastTestTime", Int64.Type}, {"count", Int64.Type}, {"date", type date}, {"id", type text}, {"segment", type text}, {"eid", type text}, {"test.id", type text}, {"test.name", type text}, {"test.canonicalId", type text}, {"test.tags.id", type text}, {"test.tags.name", type text}, {"athlete.id", type text}, {"athlete.name", type text}, {"athlete.teams", type text}, {"athlete.groups", type text}, {"athlete.external", type any}, {"active", type logical}},
+    knownTypes = {{"timestamp", Int64.Type}, {"lastSyncTime", Int64.Type}, {"lastTestTime", Int64.Type}, {"count", Int64.Type}, {"date", type date}, {"id", type text}, {"segment", type text}, {"eid", type text}, {"test.id", type text}, {"test.name", type text}, {"test.canonicalId", type text}, {"test.tags.id", type text}, {"test.tags.name", type text}, {"athlete.id", type text}, {"athlete.name", type text}, {"athlete.teams", type text}, {"athlete.groups", type text}, {"athlete.external", type any}, {"active", type logical}, {"metric.id", type text}, {"metric.label", type text}, {"metric.units", type text}, {"metric.value", type number}},
     knownNames = List.Transform(knownTypes, each _{0}),
 
-    // type all remaining (metric) columns as number
+    // type all remaining (metric) columns as number. With useNulls = false the API
+    // returns the string "N/A" for non-calculable metrics, so leave those columns untyped.
     allColumns = Table.ColumnNames(withActive),
     metricColumns = List.RemoveItems(allColumns, knownNames),
-    metricTypes = List.Transform(metricColumns, each {_, type number}),
+    metricTypes = List.Transform(metricColumns, each {_, if useNulls = false then type any else type number}),
 
     // Drop entries from knownTypes whose column isn't actually present
     // in the dataset. eid is only returned when includeEid=true,
@@ -156,7 +176,7 @@ let
     changeType = Table.TransformColumnTypes(withActive, List.Combine({existingKnownTypes, metricTypes})),
 
     // reorder columns: known prefix, then metrics alphabetically, then metadata
-    prefixCols = {"id", "active", "timestamp", "segment", "eid", "test.id", "test.name", "test.canonicalId", "test.tags.id", "test.tags.name", "athlete.id", "athlete.name", "athlete.active", "athlete.teams", "athlete.groups", "athlete.external"},
+    prefixCols = {"id", "active", "timestamp", "segment", "eid", "test.id", "test.name", "test.canonicalId", "test.tags.id", "test.tags.name", "athlete.id", "athlete.name", "athlete.active", "athlete.teams", "athlete.groups", "athlete.external", "metric.id", "metric.label", "metric.units", "metric.value"},
     suffixCols = {"count", "lastSyncTime", "lastTestTime", "date"},
     sortedMetrics = List.Sort(metricColumns, Order.Ascending),
     reorderList = List.Combine({prefixCols, sortedMetrics, suffixCols}),

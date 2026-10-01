@@ -2,13 +2,10 @@
 // a wide table: one row per sample, one column per waveform array.
 // Arrays not returned by the API for the given test type are silently
 // skipped, so the function works across all 11 test types.
-(accessToken as text, endpoint as text, testId as text) as table =>
+(accessToken as text, reg as nullable text, org as nullable text, testId as text) as table =>
 let
     Source = Json.Document(
-        Web.Contents(
-            endpoint & "/" & testId,
-            [Headers = [Authorization = "Bearer " & accessToken]]
-        )
+        funcGet(reg, funcOrgPath(org, "forcetime/" & testId), [], accessToken)
     ),
 
     // Documented waveform fields per the API spec. The API may add new
