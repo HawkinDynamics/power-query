@@ -26,10 +26,10 @@ The repository ships three connection approaches, each representing a different 
 The fastest way to get started. A pre-built Power BI Template (`.pbit`) file contains all queries, functions, and table relationships pre-configured.
 
 - **Contains:**
-  - `hawkin-connect-pbi-template-v1.20260519.pbit` — the Power BI template
-  - `hawkin-connect-excel-template-v1.20260519.xltx` — the Excel template (same data model, for Excel users)
+  - `hd-api-template-v1.20260323.pbit` — the Power BI template
   - `data-queries/` — source code for each data table query
   - `functions/` — reusable Power Query functions used by the data queries
+  - `release-notes-*.md` — version history
 
 - **Why use this?**
   - **Zero coding** — you do not need to write or edit any Power Query code.
@@ -70,12 +70,11 @@ These scripts use the same modular, function-based architecture as the Template 
   - `functions/` — reusable Power Query functions:
     - `funcAuth.pq` — authenticates with the API and returns an access token
     - `funcTests.pq` — fetches test data for any test type with dynamic schema handling
-    - `funcAthletes.pq` — fetches and expands athlete roster data, including the v1.14 profile fields (image, position, dob, sport, height, lastTestedOn)
+    - `funcAthletes.pq` — fetches and expands athlete roster data
     - `funcTeams.pq` — fetches team data
     - `funcTags.pq` — fetches tag data
-    - `funcForceTime.pq` — fetches the force-time waveform for a single test, with dynamic waveform-field detection
     - `epochNow.pq` — returns current UTC time as epoch seconds for token validation
-  - `hawkin-connect-pbi-template-v1.20260519.pbit` — a copy of the same template from Template Files
+  - `hd-api-template-v1.20260323.pbit` — a copy of the same template from Template Files
 
 - **Why use this?**
   - **Full control** — build your own report layout, choose which queries to include, and customize the data model.
@@ -121,10 +120,10 @@ These scripts use the same modular, function-based architecture as the Template 
   Auth query --> funcAuth() --> access token (cached)
        |
        v
-  Data queries (CMJ, SquatJump, Athletes, ForceTime, etc.)
+  Data queries (CMJ, SquatJump, Athletes, etc.)
        |              |
        v              v
-  funcTests()    funcAthletes() / funcTeams() / funcTags() / funcForceTime()
+  funcTests()    funcAthletes() / funcTeams() / funcTags()
        |
        v   (cursor-paginated until nextCursor is null)
        |
@@ -166,6 +165,9 @@ Standalone, self-contained scripts where all configuration — API key, region, 
      toDate = "",            // Unix timestamp; empty = no upper bound
      includeInactive = false, // true to include disabled tests/athletes
      includeEid = false,      // (test scripts) true to include equipment ID per record
+     useNulls = true,         // (test scripts) false to keep "N/A" strings instead of null
+     rounding = false,        // (test scripts) true to round metrics to display precision
+     nestMetrics = false,     // (test scripts) true for one row per test x metric
      ```
   3. Replace the placeholder values with your actual credentials and desired filters.
   4. Copy the entire script and paste it into the **Advanced Editor**:
@@ -177,6 +179,8 @@ Standalone, self-contained scripts where all configuration — API key, region, 
   - Each script authenticates independently (no token caching/reuse).
   - Credentials must be updated in every script individually.
   - No shared parameter management — to toggle filters like `includeEid` you edit each script's user-config block separately.
+
+- **Response-shape overrides (API v1.16):** `useNulls`, `rounding` and `nestMetrics` exist so customers migrating from a legacy named endpoint to `/api/v1` can reproduce that endpoint's payload; leave the defaults for new integrations. `useNulls = false` keeps the string `"N/A"` for non-calculable metrics (metric columns are left untyped instead of `number`). `rounding = true` has the API round each metric to its display precision (no effect with `nestMetrics`). `nestMetrics = true` returns one row per test × metric with `metric.id`, `metric.label`, `metric.units` and `metric.value` columns instead of one column per metric. In the Power BI template flow the same three flags are optional trailing arguments of `funcTests`.
 
 ---
 
@@ -261,10 +265,34 @@ All test-type scripts (across both Generics and Power BI Scripts) use dynamic sc
 
 ---
 
+## **Publishing to the Power BI Service**
+
+Reports built from the Template Files can be published to the Power BI Service and refreshed on a schedule. No on-premises data gateway is required — the Hawkin API is a cloud source.
+
+One setup step is specific to this template. Because the API host differs by region, the queries contain a literal `Web.Contents` call for each regional host, and Power BI registers all of them as data sources during publish. The service will not start a scheduled refresh until every listed data source has credentials, including the regions your organization does not use.
+
+**After publishing, before the first scheduled refresh:**
+
+1. In the Power BI Service, open your semantic model's **Settings** > **Data source credentials**.
+2. For each listed `hawkindynamics.com` source, select **Edit credentials**.
+3. Set **Authentication method** to **Anonymous** and **Privacy level** to **Organizational**, then **Sign in**.
+4. Repeat until no source shows a credentials warning.
+5. Expand **Refresh** and set your schedule.
+
+If saving a credential fails with a connection error, select **Skip test connection** in the same dialog and sign in again.
+
+The integration key is supplied through the **API Integration Key** parameter, not through the credential dialog. Anonymous is correct here because the key travels in an `Authorization` header that the queries build themselves.
+
+> **Privacy levels do not publish from Desktop.** Power BI Desktop does not carry its privacy settings up to the service, so step 3 has to be done in the service even if the report refreshes cleanly on your machine.
+
+**If refresh fails with a dynamic data source error:** you are on a template older than v1.0.20260918. Earlier templates built their request URLs at runtime, which the service cannot schedule. Download the current template.
+
+---
+
 ## **Support & Troubleshooting**
 
 - **Column Formatting:** After loading data, check your column types. Power Query may default numeric columns to "Text". Fix this by selecting the column and changing the "Data Type" in the Transform tab.
-- **Token Expiration:** If using the Power BI Scripts approach, tokens are validated automatically via `epochNow()`. If you encounter auth errors, try refreshing all queries.
+- **Token Expiration:** Each query requests its own access token when it runs, so tokens cannot go stale mid-refresh. If you see auth errors, confirm the **API Integration Key** parameter holds a current key from **Settings** > **Integrations** in the Hawkin Cloud.
 - **Large Date Ranges:** All scripts now use cursor-based server pagination, so even all-time pulls work without manual chunking. Leave `from`/`to` blank in the Power BI Scripts (or `fromDate`/`toDate` empty in Generics) to fetch every test.
 - **API Documentation:** For technical details on rate limits, data points, and field definitions, see the official Hawkin Connect API docs at [connect.hawkindynamics.com](https://connect.hawkindynamics.com).
 
@@ -272,7 +300,10 @@ All test-type scripts (across both Generics and Power BI Scripts) use dynamic sc
 
 ## **Release Notes**
 
-- [v1.0.20260519](Release%20Notes/release-notes-20260519.md) — Athlete profile fields (image, position, dob, sport, height, lastTestedOn) + ForceTime modernization (non-breaking)
-- [v1.0.20260427](Release%20Notes/release-notes-20260427.md) — API v1.13+ modernization: server pagination, optional `from`/`to`, `Include Equipment ID` / `Include Inactive Tests` / `Include Inactive Athletes`, parameter renames
-- [v1.0.20260323](Release%20Notes/release-notes-20260323.md) — Dynamic schema handling, function consolidation, folder restructure
-- [v1.0.20260109](Release%20Notes/release-notes-20260109.md) — Bug fixes for endpoint URLs, updated templates
+- [v1.0.20260918](Release%20Notes/release-notes-20260918.md) — Bug fix: published reports can now refresh in the Power BI Service. Breaking for custom queries that call template functions directly
+- [v1.0.20260903](Release%20Notes/archive/release-notes-20260903.md) — `useNulls`, `rounding` and `nestMetrics` response-shape parameters (API v1.16) for the Power Query scripts (non-breaking)
+- [v1.0.20260527](Release%20Notes/archive/release-notes-20260527.md) — Bug fix: corrects `lastTestedOn` unit handling (seconds, not ms) in `funcAthletes` and `Generics/Athletes.pq` (non-breaking)
+- [v1.0.20260519](Release%20Notes/archive/release-notes-20260519.md) — Athlete profile fields (image, position, dob, sport, height, lastTestedOn) + ForceTime modernization (non-breaking)
+- [v1.0.20260427](Release%20Notes/archive/release-notes-20260427.md) — API v1.13+ modernization: server pagination, optional `from`/`to`, `Include Equipment ID` / `Include Inactive Tests` / `Include Inactive Athletes`, parameter renames
+- [v1.0.20260323](Release%20Notes/archive/release-notes-20260323.md) — Dynamic schema handling, function consolidation, folder restructure
+- [v1.0.20260109](Release%20Notes/archive/release-notes-20260109.md) — Bug fixes for endpoint URLs, updated templates

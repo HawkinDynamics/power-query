@@ -89,7 +89,7 @@ let
     else
         extractGroups,
 
-    // Derive a Date column from lastTestedOn (epoch milliseconds) when the
+    // Derive a Date column from lastTestedOn (epoch seconds) when the
     // field is present. The original numeric column is kept for callers
     // that want the raw timestamp.
     addLastTestedOn = if List.Contains(Table.ColumnNames(expandExternal), "lastTestedOn") then
@@ -101,7 +101,7 @@ let
                 else Date.From(
                     DateTimeZone.ToLocal(
                         DateTime.AddZone(
-                            #datetime(1970, 1, 1, 0, 0, 0) + #duration(0, 0, 0, [lastTestedOn] / 1000),
+                            #datetime(1970, 1, 1, 0, 0, 0) + #duration(0, 0, 0, [lastTestedOn]),
                             0
                         )
                     )

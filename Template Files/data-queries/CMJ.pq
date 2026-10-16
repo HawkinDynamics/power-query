@@ -1,18 +1,16 @@
 let
-    // Current Auth Info
-    currentAuth = Auth,
+    // Connection settings come straight from the template parameters. Parameters
+    // are not data sources, so Power BI can still identify the endpoint during
+    // static analysis and schedule refresh on the published model. Reading the
+    // URL and token out of the old Auth table is what made this query a dynamic
+    // data source and broke refresh in the service.
+    reg = if #"API Region" = null then "Americas" else #"API Region",
+    org = #"Organization Name",
 
-    // Get Expiration
-    expiration = currentAuth{0}[expires_at],
-    // Current date time
-    currentDT = epochNow(false),
-    // Validate
-    validated = if expiration > currentDT then currentAuth else funcAuth(),
-
-    // extract access token from response table
-    accessToken = Text.From(validated{0}[access_token]),
-    // Endpoint URL (built by funcAuth from API Region + Organization Name)
-    endpoint = currentAuth{0}[url],
+    // Authenticate per query rather than sharing a token through a loaded
+    // table. Power Query caches identical requests within a refresh, so this is
+    // not one token round trip per table.
+    accessToken = funcAuth(#"API Integration Key", reg),
 
     // === Test Type ===
     testTypeId = "7nNduHeM5zETPjHxvm7s",
@@ -23,7 +21,7 @@ let
 
     // Optional date filters. Users enter Date values in PBI; we convert to Unix
     // epoch seconds for the API. Null when the parameter is left blank, in which
-    // case funcTests omits the &from / &to query params and pagination returns
+    // case funcTests omits the from / to query params and pagination returns
     // every test for this test type.
     from_date = if #"from" <> null then
                     Duration.TotalSeconds(DateTimeZone.From(#"from") - #datetimezone(1970, 1, 1, 0, 0, 0, 0, 0))
@@ -34,9 +32,8 @@ let
 
     // === Fetch tests ===
     // funcTests handles cursor pagination internally; a single call returns
-    // every page combined. The previous client-side 30-day chunking loop is
-    // obsolete with API v1.13+ pagination.
-    result = funcTests(accessToken, endpoint, testTypeId, from_date, to_date, include_inactive_tests, include_eid),
+    // every page combined.
+    result = funcTests(accessToken, reg, org, testTypeId, from_date, to_date, include_inactive_tests, include_eid),
     #"Filtered Rows" = Table.SelectRows(result, each ([id] <> null))
 in
     #"Filtered Rows"

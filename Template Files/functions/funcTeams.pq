@@ -1,6 +1,6 @@
-(accessToken as text, endpoint as text) as table =>
+(accessToken as text, reg as nullable text, org as nullable text) as table =>
 let
-    Source2 = Json.Document(Web.Contents(endpoint, [Headers=[Authorization="Bearer " & accessToken]])),
+    Source2 = Json.Document(funcGet(reg, funcOrgPath(org, "teams"), [], accessToken)),
     responseTable = Table.FromRecords({Source2}),
 
     // expand table from response

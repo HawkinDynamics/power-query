@@ -1,41 +1,76 @@
 (
     accessToken as text,
-    endpoint as text,
+    reg as nullable text,
+    org as nullable text,
     testTypeId as text,
     optional fromDate as nullable number,
     optional toDate as nullable number,
     optional includeInactive as nullable logical,
-    optional includeEid as nullable logical
+    optional includeEid as nullable logical,
+    optional useNulls as nullable logical,
+    optional rounding as nullable logical,
+    optional nestMetrics as nullable logical
 ) as table =>
     let
-        // Optional time-window params — only emitted when the caller passes a value.
-        // Default behavior (no from/to) returns every test in the org via cursor pagination.
-        fromParam = if fromDate <> null then "&from=" & Text.From(fromDate) else "",
-        toParam = if toDate <> null then "&to=" & Text.From(toDate) else "",
-        // Optional flags. The API defaults includeInactive=true and includeEid=false,
-        // so we only emit a query param when the caller wants the non-default behavior.
-        inactiveParam = if includeInactive = false then "&includeInactive=false" else "",
-        eidParam = if includeEid = true then "&includeEid=true" else "",
-        // Build base URL with paginate=true (responses are capped at 1,000 records / page)
-        baseQueryURL = endpoint
-            & "?testTypeId="
-            & testTypeId
-            & fromParam
-            & toParam
-            & inactiveParam
-            & eidParam
-            & "&paginate=true",
-        // Cursor-based pagination loop. On each iteration we read the previous page's
-        // nextCursor; null means we've exhausted the result set.
+        // Query parameters travel in the Query record instead of being appended
+        // to the URL. Building them into the URL string made this a dynamic data
+        // source, which blocks scheduled refresh in the Power BI service --
+        // funcGet carries the full explanation.
+        //
+        // Optional params are emitted only for non-default behavior, matching
+        // the previous string-building logic: the API defaults includeInactive
+        // to true and includeEid to false, and omitting from/to returns every
+        // test of this type via pagination.
+        baseQuery = [testTypeId = testTypeId, paginate = "true"],
+        withFrom =
+            if fromDate <> null then
+                Record.AddField(baseQuery, "from", Text.From(Int64.From(fromDate)))
+            else
+                baseQuery,
+        withTo =
+            if toDate <> null then
+                Record.AddField(withFrom, "to", Text.From(Int64.From(toDate)))
+            else
+                withFrom,
+        withInactive =
+            if includeInactive = false then
+                Record.AddField(withTo, "includeInactive", "false")
+            else
+                withTo,
+        withEid =
+            if includeEid = true then
+                Record.AddField(withInactive, "includeEid", "true")
+            else
+                withInactive,
+
+        // Response-shape overrides (API v1.16) for customers migrating from a
+        // legacy named endpoint. Only the non-default value is emitted.
+        withUseNulls =
+            if useNulls = false then
+                Record.AddField(withEid, "useNulls", "false")
+            else
+                withEid,
+        withRounding =
+            if rounding = true then
+                Record.AddField(withUseNulls, "rounding", "true")
+            else
+                withUseNulls,
+        query =
+            if nestMetrics = true then
+                Record.AddField(withRounding, "nestMetrics", "true")
+            else
+                withRounding,
+
+        // Tests live at the versioned root itself (GET /api/v1), not a subpath.
+        relPath = funcOrgPath(org),
+
+        // Cursor-based pagination loop. On each iteration we read the previous
+        // page's nextCursor; null means the result set is exhausted. The cursor
+        // goes into the Query record so every page still hits the same static
+        // base URL. The API requires all other params to stay identical across a
+        // pagination sequence, which deriving each page from `query` guarantees.
         allPages = List.Generate(
-            () =>
-                [
-                    response = Json.Document(
-                        Web.Contents(baseQueryURL, [
-                            Headers = [Authorization = "Bearer " & accessToken]
-                        ])
-                    )
-                ],
+            () => [response = Json.Document(funcGet(reg, relPath, query, accessToken))],
             each _[response] <> null,
             each
                 let
@@ -46,11 +81,11 @@
                     else
                         [
                             response = Json.Document(
-                                Web.Contents(
-                                    baseQueryURL & "&cursor=" & cursor,
-                                    [
-                                        Headers = [Authorization = "Bearer " & accessToken]
-                                    ]
+                                funcGet(
+                                    reg,
+                                    relPath,
+                                    Record.AddField(query, "cursor", cursor),
+                                    accessToken
                                 )
                             )
                         ],
@@ -80,9 +115,33 @@
                 let
                     // expand data columns dynamically
                     expandData = Table.ExpandRecordColumn(expandTable, "data", allFields, allFields),
+                    // nestMetrics = true (API v1.16): each record carries a `metrics` list
+                    // instead of flat metric fields. Expand it to one row per test x metric.
+                    // An empty list is padded with a single null so the test keeps a row.
+                    hasNested = List.Contains(allFields, "metrics"),
+                    padMetrics =
+                        if hasNested then
+                            Table.TransformColumns(
+                                expandData,
+                                {"metrics", each if _ = null or List.IsEmpty(_) then {null} else _}
+                            )
+                        else
+                            expandData,
+                    expandMetricsList =
+                        if hasNested then Table.ExpandListColumn(padMetrics, "metrics") else padMetrics,
+                    expandMetrics =
+                        if hasNested then
+                            Table.ExpandRecordColumn(
+                                expandMetricsList,
+                                "metrics",
+                                {"metricId", "metricLabel", "metricUnits", "metricValue"},
+                                {"metric.id", "metric.label", "metric.units", "metric.value"}
+                            )
+                        else
+                            expandMetricsList,
                     // expand test data columns
                     expandTestData = Table.ExpandRecordColumn(
-                        expandData,
+                        expandMetrics,
                         "testType",
                         {"id", "name", "canonicalId", "tags"},
                         {"test.id", "test.name", "test.canonicalId", "test.tags"}
@@ -163,13 +222,21 @@
                         {"athlete.teams", type text},
                         {"athlete.groups", type text},
                         {"athlete.external", type any},
-                        {"active", type logical}
+                        {"active", type logical},
+                        {"metric.id", type text},
+                        {"metric.label", type text},
+                        {"metric.units", type text},
+                        {"metric.value", type number}
                     },
                     knownNames = List.Transform(knownTypes, each _{0}),
-                    // type all remaining (metric) columns as number
+                    // type all remaining (metric) columns as number. With useNulls = false the
+                    // API returns the string "N/A" for non-calculable metrics, so leave those
+                    // columns untyped.
                     allColumns = Table.ColumnNames(withActive),
                     metricColumns = List.RemoveItems(allColumns, knownNames),
-                    metricTypes = List.Transform(metricColumns, each {_, type number}),
+                    metricTypes = List.Transform(
+                        metricColumns, each {_, if useNulls = false then type any else type number}
+                    ),
                     // Drop entries from knownTypes whose column isn't actually present
                     // in the dataset. eid is only returned when includeEid=true,
                     // so referencing it unconditionally would error in the default case.
@@ -195,7 +262,11 @@
                         "athlete.active",
                         "athlete.teams",
                         "athlete.groups",
-                        "athlete.external"
+                        "athlete.external",
+                        "metric.id",
+                        "metric.label",
+                        "metric.units",
+                        "metric.value"
                     },
                     suffixCols = {"count", "lastSyncTime", "lastTestTime", "date"},
                     sortedMetrics = List.Sort(metricColumns, Order.Ascending),
